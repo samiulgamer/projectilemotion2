@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>প্রাসের গতিবিদ্যা (Projectile Motion Simulator) | Developed by SAMIUL</title>
+    <style>
+        :root {
+            --bg-dark: #050811;
+            --panel-bg: rgba(15, 23, 42, 0.95);
+            --accent: #38bdf8;
+            --accent-hover: #0284c7;
+            --primary: #2563eb;
+            --border: #1e293b;
+            --text-muted: #94a3b8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+        body { background: var(--bg-dark); color: #f3f4f6; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+        header {
+            background: var(--panel-bg);
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #3b82f6;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            z-index: 30;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        h1 { font-size: 1.1rem; color: var(--accent); letter-spacing: 0.5px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+        .developer-tag {
+            background: linear-gradient(135deg, var(--primary), var(--accent-hover));
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+        }
+
+        .main-container { display: flex; flex-direction: column; flex: 1; height: calc(100vh - 50px); position: relative; overflow: hidden; }
+        
+        .canvas-container { flex: 1; position: relative; width: 100%; height: 100%; overflow: hidden; background: #020617; }
+        canvas#simCanvas { width: 100%; height: 100%; display: block; }
+
+        /* Floating Overlay Controls on Canvas */
+        .canvas-overlay-top {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 15;
+            gap: 8px;
+        }
+        .overlay-card {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            border-radius: 8px;
+            pointer-events: auto;
+            font-size: 0.78rem;
+        }
+
+        /* Controls Panel */
+        .controls {
+            background: var(--panel-bg);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border-top: 1px solid var(--border);
+            z-index: 20;
+            max-height: 45vh;
+            overflow-y: auto;
+        }
+        
+        .control-row { display: flex; gap: 10px; flex-wrap: wrap; }
+        .control-group { flex: 1; min-width: 130px; display: flex; flex-direction: column; gap: 3px; }
+        label { font-size: 0.78rem; color: var(--text-muted); display: flex; justify-content: space-between; font-weight: 600; }
+        input[type="range"] { accent-color: var(--accent); cursor: pointer; height: 5px; border-radius: 3px; width: 100%; }
+        select, input[type="number"] {
+            background: #1e293b; color: var(--accent); border: 1px solid #334155;
+            padding: 6px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; outline: none; width: 100%;
+        }
+
+        .btn-group { display: flex; gap: 8px; margin-top: 2px; }
+        button {
+            flex: 1; padding: 10px; border: none; border-radius: 6px;
+            font-weight: 800; cursor: pointer; font-size: 0.85rem; transition: all 0.2s ease;
+        }
+        .btn-launch { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4); }
+        .btn-launch:hover { transform: translateY(-1px); }
+        .btn-reset { background: #334155; color: #f8fafc; }
+        .btn-secondary { background: #0f172a; color: var(--accent); border: 1px solid var(--border); }
+
+        /* Readings Panel */
+        .readings {
+            background: #020617; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 6px;
+        }
+        .readings div { font-size: 0.75rem; color: var(--text-muted); }
+        .readings span { font-weight: 700; color: var(--accent); display: block; font-size: 0.82rem; }
+
+        .status-msg { font-size: 0.88rem; font-weight: 700; text-align: center; color: var(--warning); min-height: 1.2em; }
+
+        /* Collapsible Accordion */
+        .accordion-btn {
+            background: #1e293b; color: #f3f4f6; border: none; padding: 8px; text-align: left;
+            font-weight: 700; font-size: 0.8rem; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+        }
+        .accordion-content { display: none; padding: 10px; background: #020617; border-radius: 6px; border: 1px solid var(--border); font-size: 0.78rem; line-height: 1.4; }
+        .accordion-content.show { display: block; }
+
+        /* Mini Graph Canvas Overlay */
+        .graph-card { position: absolute; bottom: 10px; right: 10px; width: 180px; height: 110px; background: rgba(2, 6, 23, 0.85); border: 1px solid var(--border); border-radius: 8px; padding: 4px; pointer-events: auto; }
+        canvas#graphCanvas { width: 100%; height: 100%; display: block; }
+
+        @media (min-width: 768px) {
+            .main-container { flex-direction: row; }
+            .controls { width: 380px; max-height: 100%; border-top: none; border-right: 1px solid var(--border); }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🎯 প্রাসের গতিবিদ্যা (Projectile Motion)</h1>
+        <div class="developer-tag">Developed by SAMIUL</div>
+    </header>
+
+    <div class="main-container">
+        <div class="controls">
+            <div class="status-msg" id="statusMsg">ফায়ার বোতামে চাপ দিয়ে ফায়ার করুন!</div>
+
+            <!-- Launch Origin & Object Select -->
+            <div class="control-row">
+                <div class="control-group">
+                    <label for="originSelect">উড্ডয়ন স্থান:</label>
+                    <select id="originSelect">
+                        <option value="ground">১. সমতল মাটিতে (Ground)</option>
+                        <option value="building">২. ৩ডি বিল্ডিং / টাওয়ার</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="objectSelect">অবজেক্ট:</label>
+                    <select id="objectSelect">
+                        <option value="cannon">💥 হেভি ৩ডি ক্যানন</option>
+                        <option value="rocket">🚀 ৩ডি ওয়ারহেড রকেট</option>
+                        <option value="human">🧍‍♂️ প্লেয়ার (ফুটবল শট)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Velocity & Angle Sliders -->
+            <div class="control-row">
+                <div class="control-group">
+                    <label for="v0">আদি বেগ (v₀): <span id="v0-val">50 m/s</span></label>
+                    <input type="range" id="v0" min="5" max="100" value="50">
+                </div>
+                <div class="control-group">
+                    <label for="angle">নিক্ষেপ কোণ (θ): <span id="angle-val">45°</span></label>
+                    <input type="range" id="angle" min="0" max="89" value="45">
+                </div>
+            </div>
+
+            <!-- Height, Gravity, Drag -->
+            <div class="control-row">
+                <div class="control-group" id="h1Group" style="opacity: 0.3;">
+                    <label for="h1">বিল্ডিং উচ্চতা: <span id="h1-val">30 m</span></label>
+                    <input type="range" id="h1" min="10" max="100" value="30" disabled>
+                </div>
+                <div class="control-group">
+                    <label for="planetSelect">গ্রহ (g):</label>
+                    <select id="planetSelect">
+                        <option value="9.8">পৃথিবী (9.8 m/s²)</option>
+                        <option value="1.62">চাঁদ (1.62 m/s²)</option>
+                        <option value="3.71">মঙ্গল (3.71 m/s²)</option>
+                        <option value="24.79">বৃহস্পতি (24.79 m/s²)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Physics Controls: Air Resistance, Speed, Camera -->
+            <div class="control-row">
+                <div class="control-group">
+                    <label for="dragCheck">বাতাসের বাধা: <input type="checkbox" id="dragCheck"></label>
+                    <input type="range" id="dragCoeff" min="0.01" max="0.5" step="0.01" value="0.1" disabled>
+                </div>
+                <div class="control-group">
+                    <label for="simSpeed">গতিবেগ:</label>
+                    <select id="simSpeed">
+                        <option value="0.25">0.25x</option>
+                        <option value="0.5">0.5x</option>
+                        <option value="1" selected>1.0x (Normal)</option>
+                        <option value="2">2.0x</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Modes & Toggles -->
+            <div class="control-row">
+                <div class="control-group">
+                    <label for="cameraMode">ক্যামেরা মোড:</label>
+                    <select id="cameraMode">
+                        <option value="fit">Fit All (সব দেখুন)</option>
+                        <option value="follow">Follow (ট্র্যাক করুন)</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="gameModeCheck">টার্গেট গেম মোড: <input type="checkbox" id="gameModeCheck"></label>
+                    <label for="vectorCheck">ভেক্টর অ্যারো (vx, vy): <input type="checkbox" id="vectorCheck" checked></label>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn-launch" id="launchBtn">⚡ ফায়ার করুন</button>
+                <button class="btn-reset" id="resetBtn">রিসেট</button>
+            </div>
+
+            <!-- Theoretical Readings -->
+            <div class="readings">
+                <div>সর্বোচ্চ উচ্চতা (H): <span id="h-max">0 m</span></div>
+                <div>মোট পাল্লা (R): <span id="r-max">0 m</span></div>
+                <div>মোট সময় (T): <span id="t-max">0 s</span></div>
+                <div>স্কোর (Target): <span id="scoreVal">0</span></div>
+            </div>
+
+            <!-- Formulas Accordion -->
+            <button class="accordion-btn" id="accordionBtn">📐 প্রাসের গাণিতিক সূত্রাবলী <span>▼</span></button>
+            <div class="accordion-content" id="accordionContent">
+                <p><strong>১. সর্বোচ্চ উচ্চতা (H):</strong> H = (v₀² sin²θ) / (2g)</p>
+                <p id="calcH" style="color:var(--accent); font-weight:700; margin-bottom:6px;"></p>
+                <p><strong>২. বিচরণকাল (T):</strong> T = (2 v₀ sinθ) / g</p>
+                <p id="calcT" style="color:var(--accent); font-weight:700; margin-bottom:6px;"></p>
+                <p><strong>৩. অনুভূমিক পাল্লা (R):</strong> R = (v₀² sin 2θ) / g</p>
+                <p id="calcR" style="color:var(--accent); font-weight:700;"></p>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <!-- Dynamic Telemetry Overlay -->
+            <div class="canvas-overlay-top">
+                <div class="overlay-card">
+                    <span style="color:var(--accent); font-weight:700;">📊 লাইভ ডাটা:</span><br>
+                    সময় (t): <span id="tele-t" style="color:#fff;">0.0 s</span> | উচ্চতা (y): <span id="tele-y" style="color:#fff;">0.0 m</span><br>
+                    দূরত্ব (x): <span id="tele-x" style="color:#fff;">0.0 m</span> | বেগ (v): <span id="tele-v" style="color:#fff;">0.0 m/s</span>
+                </div>
+                <div class="overlay-card">
+                    <span style="color:var(--warning); font-weight:700;">⚡ শক্তি (Energy):</span><br>
+                    গতিশক্তি (Ek): <span id="tele-ek" style="color:#fff;">0 J</span><br>
+                    বিভবশক্তি (Ep): <span id="tele-ep" style="color:#fff;">0 J</span>
+                </div>
+            </div>
+
+            <!-- Live Canvas -->
+            <canvas id="simCanvas"></canvas>
+
+            <!-- Mini Live Graph Overlay -->
+            <div class="graph-card">
+                <div style="font-size:0.65rem; color:var(--text-muted); text-align:center;">উচ্চতা (নীল) & বেগ (লাল) vs সময়</div>
+                <canvas id="graphCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CANVAS SETUP ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const graphCanvas = document.getElementById('graphCanvas');
+        const gCtx = graphCanvas.getContext('2d');
+
+        // --- DOM ELEMENTS ---
+        const v0Input = document.getElementById('v0');
+        const angleInput = document.getElementById('angle');
+        const h1Input = document.getElementById('h1');
+        const planetSelect = document.getElementById('planetSelect');
+        const dragCheck = document.getElementById('dragCheck');
+        const dragCoeffInput = document.getElementById('dragCoeff');
+        const simSpeedInput = document.getElementById('simSpeed');
+        const originSelect = document.getElementById('originSelect');
+        const objectSelect = document.getElementById('objectSelect');
+        const cameraModeSelect = document.getElementById('cameraMode');
+        const gameModeCheck = document.getElementById('gameModeCheck');
+        const vectorCheck = document.getElementById('vectorCheck');
+        const h1Group = document.getElementById('h1Group');
+
+        const v0Val = document.getElementById('v0-val');
+        const angleVal = document.getElementById('angle-val');
+        const h1Val = document.getElementById('h1-val');
+
+        const hMaxEl = document.getElementById('h-max');
+        const rMaxEl = document.getElementById('r-max');
+        const tMaxEl = document.getElementById('t-max');
+        const scoreValEl = document.getElementById('scoreVal');
+        const statusMsg = document.getElementById('statusMsg');
+
+        // Telemetry
+        const teleT = document.getElementById('tele-t');
+        const teleY = document.getElementById('tele-y');
+        const teleX = document.getElementById('tele-x');
+        const teleV = document.getElementById('tele-v');
+        const teleEk = document.getElementById('tele-ek');
+        const teleEp = document.getElementById('tele-ep');
+
+        // Accordion Calculation Display
+        const calcH = document.getElementById('calcH');
+        const calcT = document.getElementById('calcT');
+        const calcR = document.getElementById('calcR');
+
+        // --- SIMULATION STATE VARIABLES ---
+        let animationId = null;
+        let lastTime = 0;
+        let simTime = 0;
+        let isRunning = false;
+        
+        // Physics variables (SI Units: m, s, kg)
+        let posX = 0, posY = 0;
+        let velX = 0, velY = 0;
+        const projectileMass = 1.0; // 1 kg for calculations
+
+        // Camera & Auto Scale
+        let scale = 1.0; 
+        let cameraX = 0, cameraY = 0;
+        let groundCanvasY = 0;
+        let launchCanvasX = 0, launchCanvasY = 0;
+
+        // Data Storage
+        let path = [];
+        let particles = [];
+        let stars = [];
+        let ghostTrails = []; // Stores last 3 shots
+        let graphData = [];
+
+        // Game Mode Target
+        let targetX = 0;
+        let targetWidth = 30;
+        let score = 0;
+
+        // --- INITIALIZATION ---
+        function initStars() {
+            stars = [];
+            for(let i = 0; i < 120; i++) {
+                stars.push({
+                    x: Math.random(),
+                    y: Math.random() * 0.7,
+                    size: Math.random() * 1.8 + 0.5,
+                    alpha: Math.random()
+                });
+            }
+        }
+        initStars();
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            graphCanvas.width = graphCanvas.parentElement.clientWidth;
+            graphCanvas.height = graphCanvas.parentElement.clientHeight;
+            calculateAutoAreaAndScale();
+            drawScene();
+        }
+
+        // --- DYNAMIC AUTO-SCALE & BOUND CALCULATIONS ---
+        function calculateAutoAreaAndScale() {
+            const v0 = parseFloat(v0Input.value);
+            const rad = parseFloat(angleInput.value) * (Math.PI / 180);
+            const g = parseFloat(planetSelect.value);
+            const h1 = (originSelect.value === 'building') ? parseFloat(h1Input.value) : 0;
+
+            // Compute theoretical maxes without air drag for conservative bounds
+            const vy0 = v0 * Math.sin(rad);
+            const vx0 = v0 * Math.cos(rad);
+            const H_theoretical = h1 + (vy0 * vy0) / (2 * g);
+            const T_theoretical = (vy0 + Math.sqrt(vy0 * vy0 + 2 * g * h1)) / g;
+            const R_theoretical = vx0 * T_theoretical;
+
+            // Determine minimum physical world bounding box to display
+            const worldWidthNeeded = Math.max(R_theoretical * 1.25, 40); // At least 40m
+            const worldHeightNeeded = Math.max(H_theoretical * 1.35, 25); // At least 25m
+
+            const marginX = 80;
+            const marginY = 80;
+            const availW = canvas.width - marginX * 2;
+            const availH = canvas.height - marginY * 2;
+
+            // Calculate uniform scale (pixels per meter)
+            const scaleX = availW / worldWidthNeeded;
+            const scaleY = availH / worldHeightNeeded;
+            scale = Math.min(scaleX, scaleY);
+
+            groundCanvasY = canvas.height - 50;
+            launchCanvasX = marginX;
+
+            // Update theoretical HUD readings
+            hMaxEl.innerText = H_theoretical.toFixed(1) + ' m';
+            rMaxEl.innerText = R_theoretical.toFixed(1) + ' m';
+            tMaxEl.innerText = T_theoretical.toFixed(1) + ' s';
+
+            // Update formulas panel
+            calcH.innerText = `= (${v0}² × sin²${angleInput.value}°) / (2 × ${g}) = ${H_theoretical.toFixed(2)} m`;
+            calcT.innerText = `= (2 × ${v0} × sin${angleInput.value}°) / ${g} = ${T_theoretical.toFixed(2)} s`;
+            calcR.innerText = `= (${v0}² × sin${2*angleInput.value}°) / ${g} = ${R_theoretical.toFixed(2)} m`;
+
+            // Setup Target in Game Mode if enabled
+            if (gameModeCheck.checked && targetX === 0) {
+                targetX = Math.max(30, R_theoretical * (0.4 + Math.random() * 0.5));
+            }
+        }
+
+        // Convert World (x, y in meters) to Screen Pixel Coordinates
+        function worldToScreen(wx, wy) {
+            let sx = launchCanvasX + wx * scale;
+            let sy = groundCanvasY - wy * scale;
+
+            if (cameraModeSelect.value === 'follow' && isRunning) {
+                const centerTargetX = canvas.width / 2;
+                const centerTargetY = canvas.height / 2;
+                const currSx = launchCanvasX + posX * scale;
+                const currSy = groundCanvasY - posY * scale;
+                sx += (centerTargetX - currSx);
+                sy += (centerTargetY - currSy);
+            }
+            return { x: sx, y: sy };
+        }
+
+        // --- DRAWING FUNCTIONS ---
+        function drawBackgroundSky() {
+            // Gradient Sky
+            let skyGrd = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGrd.addColorStop(0, '#020617');
+            skyGrd.addColorStop(0.7, '#0f172a');
+            skyGrd.addColorStop(1, '#1e1b4b');
+            ctx.fillStyle = skyGrd;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Responsive Stars
+            ctx.fillStyle = '#ffffff';
+            stars.forEach(star => {
+                ctx.save();
+                ctx.globalAlpha = star.alpha;
+                ctx.beginPath();
+                ctx.arc(star.x * canvas.width, star.y * canvas.height, star.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            // City Skyline (Scales with canvas size)
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+            const bgBuildings = [
+                {x: 0.0, w: 0.08, h: 0.25}, {x: 0.09, w: 0.06, h: 0.35}, {x: 0.16, w: 0.1, h: 0.2},
+                {x: 0.27, w: 0.07, h: 0.4}, {x: 0.35, w: 0.09, h: 0.28}, {x: 0.45, w: 0.08, h: 0.38},
+                {x: 0.54, w: 0.11, h: 0.22}, {x: 0.66, w: 0.08, h: 0.45}, {x: 0.75, w: 0.1, h: 0.3}
+            ];
+
+            bgBuildings.forEach(b => {
+                let bx = b.x * canvas.width;
+                let bw = b.w * canvas.width;
+                let bh = b.h * canvas.height;
+                ctx.fillRect(bx, groundCanvasY - bh, bw, bh);
+                
+                ctx.fillStyle = 'rgba(253, 224, 71, 0.1)';
+                for (let hy = groundCanvasY - bh + 10; hy < groundCanvasY - 10; hy += 20) {
+                    for (let wx = bx + 5; wx < bx + bw - 5; wx += 15) {
+                        ctx.fillRect(wx, hy, 5, 8);
+                    }
+                }
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+            });
+        }
+
+        function drawDynamicRuler() {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.8)';
+            ctx.font = '10px Segoe UI';
+
+            // Adapt tick intervals based on scale (zoom level)
+            let stepMeter = 10;
+            if (scale < 1.5) stepMeter = 50;
+            if (scale < 0.5) stepMeter = 100;
+            if (scale > 8) stepMeter = 5;
+
+            const maxMetersToDraw = Math.ceil(canvas.width / scale);
+
+            for (let m = 0; m <= maxMetersToDraw; m += stepMeter) {
+                let p = worldToScreen(m, 0);
+                if (p.x >= 0 && p.x <= canvas.width) {
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, groundCanvasY);
+                    ctx.lineTo(p.x, groundCanvasY + 8);
+                    ctx.stroke();
+                    ctx.fillText(m + 'm', p.x - 8, groundCanvasY + 20);
+                }
+            }
+            ctx.restore();
+        }
+
+        function drawGroundAndBuilding() {
+            // Ground Plane
+            let gGrad = ctx.createLinearGradient(0, groundCanvasY, 0, canvas.height);
+            gGrad.addColorStop(0, '#15803d');
+            gGrad.addColorStop(1, '#052e16');
+            ctx.fillStyle = gGrad;
+            ctx.fillRect(0, groundCanvasY, canvas.width, canvas.height - groundCanvasY);
+
+            ctx.strokeStyle = '#4ade80';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, groundCanvasY);
+            ctx.lineTo(canvas.width, groundCanvasY);
+            ctx.stroke();
+
+            // 3D Building if selected
+            if (originSelect.value === 'building') {
+                const h1 = parseFloat(h1Input.value);
+                const bWidthMeters = 15; // 15m wide building
+                const pBottom = worldToScreen(0, 0);
+                const pTop = worldToScreen(0, h1);
+
+                const pxWidth = bWidthMeters * scale;
+                const pxHeight = pBottom.y - pTop.y;
+
+                ctx.save();
+                let bGrad = ctx.createLinearGradient(pTop.x - pxWidth/2, pTop.y, pTop.x + pxWidth/2, pTop.y);
+                bGrad.addColorStop(0, '#334155');
+                bGrad.addColorStop(0.7, '#1e293b');
+                bGrad.addColorStop(1, '#0f172a');
+                ctx.fillStyle = bGrad;
+                ctx.fillRect(pTop.x - pxWidth/2, pTop.y, pxWidth, pxHeight);
+
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(pTop.x - pxWidth/2, pTop.y, pxWidth, pxHeight);
+
+                // Windows
+                ctx.fillStyle = '#fef08a';
+                for (let hy = pTop.y + 10; hy < pBottom.y - 10; hy += 18) {
+                    for (let wx = pTop.x - pxWidth/2 + 6; wx < pTop.x + pxWidth/2 - 6; wx += 12) {
+                        ctx.fillRect(wx, hy, 5, 8);
+                    }
+                }
+                ctx.restore();
+            }
+
+            // Draw Game Mode Target
+            if (gameModeCheck.checked) {
+                const pTarget = worldToScreen(targetX, 0);
+                const pWidth = targetWidth * scale;
+                ctx.save();
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.4)';
+                ctx.fillRect(pTarget.x - pWidth/2, groundCanvasY - 4, pWidth, 8);
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(pTarget.x - pWidth/2, groundCanvasY - 4, pWidth, 8);
+                
+                // Target Bullseye Flag
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath();
+                ctx.arc(pTarget.x, groundCanvasY, 6, 0, Math.PI*2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // --- PREDICTED TRAJECTORY PREVIEW (DOTTED LINE) ---
+        function drawPredictedTrajectory() {
+            if (isRunning) return;
+
+            const v0 = parseFloat(v0Input.value);
+            const rad = parseFloat(angleInput.value) * (Math.PI / 180);
+            const g = parseFloat(planetSelect.value);
+            const h1 = (originSelect.value === 'building') ? parseFloat(h1Input.value) : 0;
+            const useDrag = dragCheck.checked;
+            const k = parseFloat(dragCoeffInput.value);
+
+            ctx.save();
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 6]);
+            ctx.beginPath();
+
+            let px = 0;
+            let py = h1;
+            let pvx = v0 * Math.cos(rad);
+            let pvy = v0 * Math.sin(rad);
+            let dtPredict = 0.05;
+
+            let startScreen = worldToScreen(px, py);
+            ctx.moveTo(startScreen.x, startScreen.y);
+
+            for (let i = 0; i < 400; i++) {
+                if (py < 0) break;
+
+                if (useDrag) {
+                    let speed = Math.hypot(pvx, pvy);
+                    let ax = -k * speed * pvx;
+                    let ay = -g - (k * speed * pvy);
+                    pvx += ax * dtPredict;
+                    pvy += ay * dtPredict;
+                } else {
+                    pvy -= g * dtPredict;
+                }
+
+                px += pvx * dtPredict;
+                py += pvy * dtPredict;
+
+                let sc = worldToScreen(px, py);
+                ctx.lineTo(sc.x, sc.y);
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // --- LAUNCHER & OBJECT DRAWING ---
+        function drawLauncher(wx, wy, angleRad) {
+            const pos = worldToScreen(wx, wy);
+            const type = objectSelect.value;
+
+            ctx.save();
+            ctx.translate(pos.x, pos.y);
+
+            if (type === 'cannon') {
+                // Cannon Base / Wheel
+                let wheelGrad = ctx.createRadialGradient(0, 0, 3, 0, 0, 14);
+                wheelGrad.addColorStop(0, '#94a3b8'); wheelGrad.addColorStop(1, '#020617');
+                ctx.fillStyle = wheelGrad;
+                ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#64748b'; ctx.lineWidth = 2; ctx.stroke();
+
+                // Rotating Barrel
+                ctx.rotate(-angleRad);
+                let bGrad = ctx.createLinearGradient(0, -10, 0, 10);
+                bGrad.addColorStop(0, '#475569'); bGrad.addColorStop(0.5, '#0f172a'); bGrad.addColorStop(1, '#334155');
+                ctx.fillStyle = bGrad;
+                ctx.fillRect(0, -10, 40, 20);
+                ctx.fillStyle = '#020617';
+                ctx.fillRect(36, -11, 5, 22);
+            } else if (type === 'rocket') {
+                ctx.rotate(-angleRad);
+                let grad = ctx.createLinearGradient(0, -8, 0, 8);
+                grad.addColorStop(0, '#ffffff'); grad.addColorStop(1, '#1e293b');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.moveTo(25, 0); ctx.lineTo(-15, -8); ctx.lineTo(-15, 8); ctx.closePath(); ctx.fill();
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath();
+                ctx.moveTo(25, 0); ctx.lineTo(10, -5); ctx.lineTo(10, 5); ctx.closePath(); ctx.fill();
+            } else {
+                // Human Player
+                ctx.fillStyle = '#38bdf8';
+                ctx.beginPath(); ctx.arc(0, -32, 8, 0, Math.PI * 2); ctx.fill(); // Head
+                ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3.5;
+                ctx.beginPath(); ctx.moveTo(0, -24); ctx.lineTo(0, -8); ctx.stroke(); // Body
+                ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(10, 0); ctx.stroke(); // Legs
+                ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(-10, 0); ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // --- VELOCITY VECTOR ARROWS ---
+        function drawVelocityVectors(wx, wy, vx, vy) {
+            if (!vectorCheck.checked) return;
+
+            const pos = worldToScreen(wx, wy);
+            const vectorScale = 0.8; // Arrow length scaling
+
+            ctx.save();
+            ctx.lineWidth = 2;
+
+            // Vx Arrow (Horizontal - Cyan)
+            ctx.strokeStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            ctx.lineTo(pos.x + vx * vectorScale, pos.y);
+            ctx.stroke();
+
+            // Vy Arrow (Vertical - Yellow)
+            ctx.strokeStyle = '#facc15';
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            ctx.lineTo(pos.x, pos.y - vy * vectorScale); // Canvas Y inverted
+            ctx.stroke();
+
+            // Resultant V Arrow (Red)
+            ctx.strokeStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            ctx.lineTo(pos.x + vx * vectorScale, pos.y - vy * vectorScale);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // --- GHOSTR TRAILS & FLIGHT PATH ---
+        function drawTrailsAndPath() {
+            // Faded Ghost Trails from last 3 shots
+            ghostTrails.forEach((trail, idx) => {
+                if (trail.length === 0) return;
+                ctx.save();
+                ctx.strokeStyle = `rgba(148, 163, 184, ${0.15 + idx * 0.1})`;
+                ctx.lineWidth = 2;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                trail.forEach((pt, i) => {
+                    let sc = worldToScreen(pt.x, pt.y);
+                    if (i === 0) ctx.moveTo(sc.x, sc.y);
+                    else ctx.lineTo(sc.x, sc.y);
+                });
+                ctx.stroke();
+                ctx.restore();
+            });
+
+            // Current Active Path
+            if (path.length > 0) {
+                ctx.save();
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                path.forEach((pt, i) => {
+                    let sc = worldToScreen(pt.x, pt.y);
+                    if (i === 0) ctx.moveTo(sc.x, sc.y);
+                    else ctx.lineTo(sc.x, sc.y);
+                });
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        // --- MAIN CANVAS DRAW SCENE ---
+        function drawScene() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const rad = parseFloat(angleInput.value) * (Math.PI / 180);
+            const startH = (originSelect.value === 'building') ? parseFloat(h1Input.value) : 0;
+
+            drawBackgroundSky();
+            drawGroundAndBuilding();
+            drawDynamicRuler();
+            drawPredictedTrajectory();
+            drawTrailsAndPath();
+
+            // Draw Static Launcher if not running
+            if (!isRunning) {
+                drawLauncher(0, startH, rad);
+            } else {
+                // Draw Animated Launcher at origin
+                drawLauncher(0, startH, rad);
+
+                // Draw Active Flying Object
+                const currentAngle = Math.atan2(velY, velX);
+                drawLauncher(posX, posY, currentAngle);
+                drawVelocityVectors(posX, posY, velX, velY);
+            }
+
+            // Draw Particles
+            particles.forEach(p => p.draw());
+        }
+
+        // --- PARTICLE EXPLOSION SYSTEM ---
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x; this.y = y; this.color = color;
+                this.size = Math.random() * 6 + 2;
+                this.vx = (Math.random() - 0.5) * 12;
+                this.vy = (Math.random() - 0.8) * 10;
+                this.life = 1.0;
+            }
+            update(dt) {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= 1.5 * dt;
+            }
+            draw() {
+                if (this.life <= 0) return;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // --- MINI GRAPH SYSTEM ---
+        function updateMiniGraph() {
+            gCtx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+            if (graphData.length < 2) return;
+
+            const maxT = Math.max(...graphData.map(d => d.t), 1);
+            const maxY = Math.max(...graphData.map(d => d.y), 10);
+            const maxV = Math.max(...graphData.map(d => d.v), 10);
+
+            // Draw Height Graph (Blue)
+            gCtx.strokeStyle = '#38bdf8';
+            gCtx.lineWidth = 1.5;
+            gCtx.beginPath();
+            graphData.forEach((d, i) => {
+                let gx = (d.t / maxT) * graphCanvas.width;
+                let gy = graphCanvas.height - (d.y / maxY) * (graphCanvas.height - 10);
+                if (i === 0) gCtx.moveTo(gx, gy);
+                else gCtx.lineTo(gx, gy);
+            });
+            gCtx.stroke();
+
+            // Draw Speed Graph (Red)
+            gCtx.strokeStyle = '#ef4444';
+            gCtx.lineWidth = 1.5;
+            gCtx.beginPath();
+            graphData.forEach((d, i) => {
+                let gx = (d.t / maxT) * graphCanvas.width;
+                let gv = graphCanvas.height - (d.v / maxV) * (graphCanvas.height - 10);
+                if (i === 0) gCtx.moveTo(gx, gv);
+                else gCtx.lineTo(gx, gv);
+            });
+            gCtx.stroke();
+        }
+
+        // --- NUMERICAL INTEGRATION & SIMULATION LOOP ---
+        function startLaunch() {
+            if (isRunning) cancelAnimationFrame(animationId);
+
+            calculateAutoAreaAndScale();
+
+            const v0 = parseFloat(v0Input.value);
+            const rad = parseFloat(angleInput.value) * (Math.PI / 180);
+            const startH = (originSelect.value === 'building') ? parseFloat(h1Input.value) : 0;
+
+            // Save last path to ghost trails
+            if (path.length > 0) {
+                ghostTrails.push([...path]);
+                if (ghostTrails.length > 3) ghostTrails.shift();
+            }
+
+            // Reset Simulation State
+            posX = 0;
+            posY = startH;
+            velX = v0 * Math.cos(rad);
+            velY = v0 * Math.sin(rad);
+            simTime = 0;
+            path = [{ x: posX, y: posY }];
+            particles = [];
+            graphData = [{ t: 0, y: posY, v: v0 }];
+            isRunning = true;
+            lastTime = performance.now();
+
+            statusMsg.innerText = "🚀 ফায়ারিং চলছে...";
+            statusMsg.style.color = "#38bdf8";
+
+            requestAnimationFrame(simLoop);
+        }
+
+        function simLoop(now) {
+            if (!isRunning) return;
+
+            // Delta time computation in seconds
+            let dt = (now - lastTime) / 1000;
+            lastTime = now;
+
+            // Cap max delta time to prevent tab-switching bugs
+            if (dt > 0.1) dt = 0.1;
+
+            // Multiply by speed factor
+            dt *= parseFloat(simSpeedInput.value);
+
+            const g = parseFloat(planetSelect.value);
+            const useDrag = dragCheck.checked;
+            const k = parseFloat(dragCoeffInput.value);
+
+            // Sub-stepping for numerical accuracy (RK4 or Semi-Implicit Euler)
+            const subSteps = 5;
+            const subDt = dt / subSteps;
+
+            for (let i = 0; i < subSteps; i++) {
+                if (posY <= 0 && simTime > 0) break;
+
+                if (useDrag) {
+                    // Air resistance: Fd = -k * v * v
+                    let speed = Math.hypot(velX, velY);
+                    let ax = -k * speed * velX;
+                    let ay = -g - (k * speed * velY);
+
+                    velX += ax * subDt;
+                    velY += ay * subDt;
+                } else {
+                    velY -= g * subDt;
+                }
+
+                posX += velX * subDt;
+                posY += velY * subDt;
+                simTime += subDt;
+            }
+
+            // Check Ground Landing Exact Intercept
+            if (posY <= 0) {
+                posY = 0; // Lock to exact ground level
+                isRunning = false;
+                handleLandingImpact();
+            }
+
+            path.push({ x: posX, y: posY });
+
+            // Telemetry & Energy Calculation
+            const speed = Math.hypot(velX, velY);
+            const Ek = 0.5 * projectileMass * speed * speed;
+            const Ep = projectileMass * g * posY;
+
+            teleT.innerText = simTime.toFixed(2) + ' s';
+            teleX.innerText = posX.toFixed(1) + ' m';
+            teleY.innerText = Math.max(0, posY).toFixed(1) + ' m';
+            teleV.innerText = speed.toFixed(1) + ' m/s';
+            teleEk.innerText = Math.round(Ek) + ' J';
+            teleEp.innerText = Math.round(Ep) + ' J';
+
+            graphData.push({ t: simTime, y: Math.max(0, posY), v: speed });
+            updateMiniGraph();
+
+            // Particle Smoke Trail
+            if (isRunning && objectSelect.value === 'rocket') {
+                let sc = worldToScreen(posX, posY);
+                particles.push(new Particle(sc.x, sc.y, '#f97316'));
+            }
+
+            // Update Particles
+            particles.forEach((p, index) => {
+                p.update(dt);
+                if (p.life <= 0) particles.splice(index, 1);
+            });
+
+            drawScene();
+
+            if (isRunning || particles.length > 0) {
+                animationId = requestAnimationFrame(simLoop);
+            }
+        }
+
+        function handleLandingImpact() {
+            let sc = worldToScreen(posX, 0);
+
+            // Create explosion particle effect
+            for (let i = 0; i < 40; i++) {
+                particles.push(new Particle(sc.x, groundCanvasY, '#facc15'));
+            }
+
+            if (gameModeCheck.checked) {
+                const errorDist = Math.abs(posX - targetX);
+                if (errorDist <= targetWidth / 2) {
+                    score += 100;
+                    statusMsg.innerText = `🎯 পারফেক্ট হিট! (ত্রুটি: ${errorDist.toFixed(1)}m)`;
+                    statusMsg.style.color = "#22c55e";
+                } else if (errorDist <= targetWidth) {
+                    score += 40;
+                    statusMsg.innerText = `⚠️ কাছাকাছি মিস! (ত্রুটি: ${errorDist.toFixed(1)}m)`;
+                    statusMsg.style.color = "#f59e0b";
+                } else {
+                    statusMsg.innerText = `💥 সম্পূর্ণ মিস! (ত্রুটি: ${errorDist.toFixed(1)}m)`;
+                    statusMsg.style.color = "#ef4444";
+                }
+                scoreValEl.innerText = score;
+            } else {
+                statusMsg.innerText = "💥 SIUUU! সফল অবতরণ!";
+                statusMsg.style.color = "#22c55e";
+            }
+
+            drawScene();
+        }
+
+        // --- EVENT LISTENERS & INPUT HANDLERS ---
+        function onInputChange() {
+            v0Val.innerText = v0Input.value + ' m/s';
+            angleVal.innerText = angleInput.value + '°';
+            h1Val.innerText = h1Input.value + ' m';
+
+            if (originSelect.value === 'ground') {
+                h1Group.style.opacity = '0.3';
+                h1Input.disabled = true;
+            } else {
+                h1Group.style.opacity = '1';
+                h1Input.disabled = false;
+            }
+
+            dragCoeffInput.disabled = !dragCheck.checked;
+
+            if (!isRunning) {
+                calculateAutoAreaAndScale();
+                drawScene();
+            }
+        }
+
+        [v0Input, angleInput, h1Input, planetSelect, dragCheck, dragCoeffInput, simSpeedInput, originSelect, objectSelect, cameraModeSelect, gameModeCheck, vectorCheck].forEach(el => {
+            el.addEventListener('input', onInputChange);
+        });
+
+        document.getElementById('launchBtn').addEventListener('click', startLaunch);
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            if (isRunning) cancelAnimationFrame(animationId);
+            isRunning = false;
+            path = [];
+            particles = [];
+            ghostTrails = [];
+            graphData = [];
+            targetX = 0;
+            statusMsg.innerText = "ফায়ার বোতামে চাপ দিয়ে ফায়ার করুন!";
+            statusMsg.style.color = "#f59e0b";
+            teleT.innerText = '0.0 s'; teleX.innerText = '0.0 m'; teleY.innerText = '0.0 m'; teleV.innerText = '0.0 m/s';
+            calculateAutoAreaAndScale();
+            drawScene();
+            updateMiniGraph();
+        });
+
+        // Collapsible Accordion Logic
+        const accordionBtn = document.getElementById('accordionBtn');
+        const accordionContent = document.getElementById('accordionContent');
+        accordionBtn.addEventListener('click', () => {
+            accordionContent.classList.toggle('show');
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 200));
+
+        // Initial trigger
+        resizeCanvas();
+    </script>
+</body>
+</html>
